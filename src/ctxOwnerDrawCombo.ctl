@@ -324,21 +324,25 @@ Public Property Let ListWidth(ByVal lValue As Long)
         If m_oCombo.ListCount > DropdownRows Then
             lValue = lValue + GetSystemMetrics(SM_CXVSCROLL)
         End If
-        If m_bDropped Then
-            Call GetWindowRect(m_hDropdown, rc)
-            If rc.Right < rc.Left + lValue Then
-                rc.Right = rc.Left + lValue
-            End If
-            Call SetWindowPos(m_hDropdown, 0, rc.Left, rc.Top, rc.Right - rc.Left, rc.Bottom - rc.Top, SWP_NOZORDER Or SWP_NOACTIVATE)
-        Else
-            Call SendMessage(m_oCombo.hWnd, CB_SETDROPPEDWIDTH, lValue, ByVal 0)
+    End If
+    If m_bDropped Then
+        Call GetWindowRect(m_hDropdown, rc)
+        If rc.Right < rc.Left + lValue Then
+            rc.Right = rc.Left + lValue
         End If
+        Call SetWindowPos(m_hDropdown, 0, rc.Left, rc.Top, rc.Right - rc.Left, rc.Bottom - rc.Top, SWP_NOZORDER Or SWP_NOACTIVATE)
+    Else
+        Call SendMessage(m_oCombo.hWnd, CB_SETDROPPEDWIDTH, lValue, ByVal 0)
     End If
     m_lListWidth = lValue
     Exit Property
 EH:
     PrintError FUNC_NAME
     Resume Next
+End Property
+
+Public Property Get Extension() As Object
+    Set Extension = m_oExt
 End Property
 
 '= private ===============================================================

@@ -27,7 +27,7 @@ End Type
 
 Public Property Get SystemIconFont() As StdFont
     Const SPI_GETICONTITLELOGFONT       As Long = 31
-    Const FW_NORMAL                     As Long = 40
+    Const FW_NORMAL                     As Long = 400
     Const LOGPIXELSY                    As Long = 90
     Dim uFont           As LOGFONTW
     Dim hTempDC         As Long

@@ -219,17 +219,17 @@ Private Enum UcsFormTimerAction '--- bitmask
     ucsTmrAll = 2 ^ 3 - 1
 End Enum
 
-Private Enum UcsInterfaceVtblIndexes
+Private Enum UcsVtblIndexes
     '--- IShellFolder
-    IDX_EnumObjects = 4
-    IDX_BindToObject = 5
-    IDX_GetUIObjectOf = 10
+    IShellFolder_EnumObjects = 4
+    IShellFolder_BindToObject = 5
+    IShellFolder_GetUIObjectOf = 10
     '--- IEnumIDList
-    IDX_Next = 3
+    IEnumIDList_Next = 3
     '--- IDataObject
-    IDX_GetData = 3
+    IDataObject_GetData = 3
     '--- IQueryInfo
-    IDX_GetInfoTip = 3
+    IQueryInfo_GetInfoTip = 3
 End Enum
 
 '=========================================================================
@@ -275,14 +275,17 @@ End Property
 
 Public Property Let Enabled(ByVal bValue As Boolean)
     Const FUNC_NAME     As String = "Enabled [let]"
+    Dim lItemHeight     As Long
     
     On Error GoTo EH
     m_bEnabled = bValue
     If bValue Then
         m_oCtl.ListWidth = pvCalcMaxWidth(m_cPrinters)
     Else
-        m_oCtl.ListWidth = 0
+        m_oCtl.ListWidth = -1
     End If
+    m_oCtl_MeasureItem 0, lItemHeight
+    m_oCtl.ItemHeight(0) = lItemHeight
     Exit Property
 EH:
     PrintError FUNC_NAME
@@ -368,14 +371,14 @@ Public Function EnumPrinters() As Collection
         m_pidlPrinters = pvGetPrintersFolder(m_pPrintersFolder)
     End If
     If Not m_pPrintersFolder Is Nothing Then
-        DispCallByVtbl m_pPrintersFolder, IDX_EnumObjects, 0&, SHCONTF_NONFOLDERS, VarPtr(pEnumIds)
+        DispCallByVtbl m_pPrintersFolder, IShellFolder_EnumObjects, 0&, SHCONTF_NONFOLDERS, VarPtr(pEnumIds)
     End If
     If Not pEnumIds Is Nothing Then
-        Do While DispCallByVtbl(pEnumIds, IDX_Next, 1&, VarPtr(lPtr), VarPtr(lCount)) = S_OK And lCount = 1
+        Do While DispCallByVtbl(pEnumIds, IEnumIDList_Next, 1&, VarPtr(lPtr), VarPtr(lCount)) = S_OK And lCount = 1
             pidlCurrent = pvToPidl(lPtr)
             '--- get DeviceName
             Set pDataObject = Nothing
-            DispCallByVtbl m_pPrintersFolder, IDX_GetUIObjectOf, 0&, 1&, VarPtr(VarPtr(pidlCurrent(0))), VarPtr(IID_IDataObject(0)), 0&, VarPtr(pDataObject)
+            DispCallByVtbl m_pPrintersFolder, IShellFolder_GetUIObjectOf, 0&, 1&, VarPtr(VarPtr(pidlCurrent(0))), VarPtr(IID_IDataObject(0)), 0&, VarPtr(pDataObject)
             sDeviceName = pvGetDeviceName(pDataObject)
             If LenB(sDeviceName) <> 0 And sDeviceName <> "WinUtils_NewObject" And Not SearchCollection(EnumPrinters, sDeviceName) Then
                 EnumPrinters.Add sDeviceName, sDeviceName
@@ -443,7 +446,7 @@ Private Function pvGetPrintersFolder(Optional pPrintersFolder As stdole.IUnknown
         Call SHGetDesktopFolder(pDesktopFolder)
         Call SHGetSpecialFolderLocation(0, CSIDL_PRINTERS, lPtr)
         g_pidlPrinters = pvToPidl(lPtr)
-        DispCallByVtbl pDesktopFolder, IDX_BindToObject, VarPtr(g_pidlPrinters(0)), 0&, VarPtr(IID_IShellFolder(0)), VarPtr(g_pPrintersFolder)
+        DispCallByVtbl pDesktopFolder, IShellFolder_BindToObject, VarPtr(g_pidlPrinters(0)), 0&, VarPtr(IID_IShellFolder(0)), VarPtr(g_pPrintersFolder)
     End If
     Set pPrintersFolder = g_pPrintersFolder
     pvGetPrintersFolder = g_pidlPrinters
@@ -470,7 +473,7 @@ Private Function pvGetDeviceName(pDataObject As stdole.IUnknown) As String
             .lIndex = -1
             .tymed = ucsTmdHGlobal
         End With
-        If DispCallByVtbl(pDataObject, IDX_GetData, VarPtr(uFmte), VarPtr(uStorage)) = S_OK Then
+        If DispCallByVtbl(pDataObject, IDataObject_GetData, VarPtr(uFmte), VarPtr(uStorage)) = S_OK Then
             lPtr = GlobalLock(uStorage.pData)
             If lPtr <> 0 Then
                 Call CopyMemory(uDrop, ByVal lPtr, LenB(uDrop))
@@ -545,27 +548,27 @@ Private Function pvUpdatePrinterInfo(ByVal bTooltip As Boolean) As Boolean
     m_bInUpdatePrinterInfo = True
     '--- retrieve enumerator of Printers virtual folder
     If Not m_pPrintersFolder Is Nothing Then
-        DispCallByVtbl m_pPrintersFolder, IDX_EnumObjects, 0&, SHCONTF_NONFOLDERS, VarPtr(pEnumIds)
+        DispCallByVtbl m_pPrintersFolder, IShellFolder_EnumObjects, 0&, SHCONTF_NONFOLDERS, VarPtr(pEnumIds)
     End If
     If Not pEnumIds Is Nothing Then
         '--- loop printers
-        Do While DispCallByVtbl(pEnumIds, IDX_Next, 1&, VarPtr(lPtr), VarPtr(lCount)) = S_OK And lCount = 1
+        Do While DispCallByVtbl(pEnumIds, IEnumIDList_Next, 1&, VarPtr(lPtr), VarPtr(lCount)) = S_OK And lCount = 1
             pidlCurrent = pvToPidl(lPtr)
             vInfo = Array(vbNullString, vbNullString, vbNullString, 0, 0, 0, 0)
             '--- get DeviceName
             Set pDataObject = Nothing
-            DispCallByVtbl m_pPrintersFolder, IDX_GetUIObjectOf, 0&, 1&, VarPtr(VarPtr(pidlCurrent(0))), VarPtr(IID_IDataObject(0)), 0&, VarPtr(pDataObject)
+            DispCallByVtbl m_pPrintersFolder, IShellFolder_GetUIObjectOf, 0&, 1&, VarPtr(VarPtr(pidlCurrent(0))), VarPtr(IID_IDataObject(0)), 0&, VarPtr(pDataObject)
             vInfo(ucsIdxDeviceName) = pvGetDeviceName(pDataObject)
             If SearchCollection(m_cPrinters, vInfo(ucsIdxDeviceName)) Then
             If LenB(vInfo(ucsIdxDeviceName)) <> 0 Then
                 '--- get tooltip
                 If bTooltip Then
                     Set pQueryInfo = Nothing
-                    '--- note: win98 ne poddyrja IID_IQueryInfo
-                    DispCallByVtbl m_pPrintersFolder, IDX_GetUIObjectOf, 0&, 1&, VarPtr(VarPtr(pidlCurrent(0))), VarPtr(IID_IQueryInfo(0)), 0&, VarPtr(pQueryInfo)
+                    '--- note: win98 does not support IID_IQueryInfo
+                    DispCallByVtbl m_pPrintersFolder, IShellFolder_GetUIObjectOf, 0&, 1&, VarPtr(VarPtr(pidlCurrent(0))), VarPtr(IID_IQueryInfo(0)), 0&, VarPtr(pQueryInfo)
                     If Not pQueryInfo Is Nothing Then
                         lPtr = 0
-                        DispCallByVtbl pQueryInfo, IDX_GetInfoTip, QITIPF_SINGLELINE, VarPtr(lPtr)
+                        DispCallByVtbl pQueryInfo, IQueryInfo_GetInfoTip, QITIPF_SINGLELINE, VarPtr(lPtr)
                         If lPtr <> 0 Then
                             vInfo(ucsIdxToolTip) = Replace(Replace(Replace(Replace(Replace(pvToString(lPtr), vbCrLf, ", "), vbLf, ", "), vbTab, vbNullString), "  ", " "), "  ", " ")
                             Call CoTaskMemFree(lPtr)
@@ -609,13 +612,13 @@ Private Function pvUpdatePrinterInfo(ByVal bTooltip As Boolean) As Boolean
             Call ImageList_GetIconSize(m_cPrinters.Item(1)(ucsIdxSmallImageList), m_cxSmall, m_cySmall)
         End If
     End If
-    '--- min size: 32px in small fonts, 40px in large-font
+    '--- min size: 32px in small fonts, 40px in large-fonts
     m_lIndent = 480 / Screen.TwipsPerPixelX
     If m_cxLarge > m_lIndent Then
         m_lIndent = m_cxLarge
     End If
     m_oCtl_MeasureItem 0, lItemHeight
-    '--- ednokratno, inache combo-to se bugqswa vert scrollbar
+    '--- one time, otherwise combo's vertical scrollbar goes haywire
     If m_oCtl.ItemHeight(0) < lItemHeight Then
         m_oCtl.ItemHeight(0) = lItemHeight
         m_oCtl.DropdownRows = Screen.Height / Screen.TwipsPerPixelX / lItemHeight \ 2
@@ -933,13 +936,16 @@ Private Sub m_oCtl_DrawItem(ByVal ItemID As Long, ByVal hDC As Long, Left As Lon
     Dim bEnabled        As Boolean
     
     On Error GoTo EH
+    Call SetBkMode(hDC, BS_TRANSPARENT)
     If Not m_bEnabled Then
+        pvFillRect hDC, Left, Top, Right, Bottom, IIf(m_oCtl.SelectIndex = ItemID, vbHighlight, m_oCtl.BackColor)
+        Call SetTextColor(hDC, TranslateColor(IIf(m_oCtl.SelectIndex = ItemID, vbHighlightText, m_oCtl.ForeColor)))
+        pvDrawText hDC, m_oCtl.List(ItemID), Left + 4, Top, Right, Bottom, DT_SINGLELINE Or DT_LEFT Or DT_VCENTER Or DT_NOPREFIX
         GoTo QH
     End If
     If Not SearchCollection(m_cPrinters, IIf(ItemID < 0, m_oCtl.Text, m_oCtl.List(ItemID)), RetVal:=vElem) Then
         GoTo QH
     End If
-    Call SetBkMode(hDC, BS_TRANSPARENT)
     rcFocus.Top = Top
     rcFocus.Right = Right - 1
     rcFocus.Bottom = Bottom
@@ -1012,7 +1018,7 @@ Private Sub m_oCtl_ShellChange(ByVal lEvent As Long, ByVal dwItem1 As Long, ByVa
     Select Case lEvent
     Case SHCNE_CREATE, SHCNE_DELETE, SHCNE_UPDATEITEM
         pidlCurrent = pvToPidl(dwItem1, Release:=False)
-        DispCallByVtbl m_pPrintersFolder, IDX_GetUIObjectOf, 0&, 1&, VarPtr(VarPtr(pidlCurrent(UBound(m_pidlPrinters) - 1))), VarPtr(IID_IDataObject(0)), 0&, VarPtr(pDataObject)
+        DispCallByVtbl m_pPrintersFolder, IShellFolder_GetUIObjectOf, 0&, 1&, VarPtr(VarPtr(pidlCurrent(UBound(m_pidlPrinters) - 1))), VarPtr(IID_IDataObject(0)), 0&, VarPtr(pDataObject)
         sDeviceName = pvGetDeviceName(pDataObject)
     End Select
     If LenB(sDeviceName) <> 0 Then
