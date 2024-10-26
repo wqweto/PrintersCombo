@@ -868,3 +868,7 @@ EH:
     PrintError FUNC_NAME
     Resume Next
 End Sub
+
+Private Sub UserControl_Terminate()
+    Set m_pHook = Nothing
+End Sub
